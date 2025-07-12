@@ -33,6 +33,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+
 class PCDStreamerUI(QMainWindow):
     """Controls display and user interface using VTK and PySide6."""
 
@@ -116,7 +117,8 @@ class PCDStreamerUI(QMainWindow):
         self.init_bbox_tab()
         self.init_data_tab()
         self.init_agent_tab()  # Add the new Robot tab
-
+        #添加一个测试界面
+        self.init_test_tab()
         # Create System Info group
         system_info_group = QGroupBox("System Info")
         system_info_layout = QVBoxLayout()
@@ -130,6 +132,43 @@ class PCDStreamerUI(QMainWindow):
         # Set initial states
         self.set_disable_before_stream_init()
 
+
+        
+    # test界面的内容，跟general节目相比添加了可以点击color图片得到xy
+    # def init_test_tab(self):
+    #     self.general_tab = QWidget()
+    #     self.tab_view.addTab(self.general_tab, "General")
+    #     general_layout = QVBoxLayout(self.general_tab)
+
+    #     self.init_video_displays(general_layout)
+    #     self.init_scene_info(general_layout)
+    def init_test_tab(self):
+
+        self.test_tab = QWidget()
+
+        self.tab_view.addTab(self.test_tab, "Test")
+        layout = QVBoxLayout(self.test_tab)
+
+        # 创建 Color 显示
+        self.test_color_groupbox = QGroupBox("Color Image")
+        layout.addWidget(self.test_color_groupbox)
+        color_layout = QVBoxLayout()
+        self.test_color_groupbox.setLayout(color_layout)
+        self.test_color_video = ResizableImageLabel()
+        self.test_color_video.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        color_layout.addWidget(self.test_color_video)
+
+        # 创建 Depth 显示
+        self.test_depth_groupbox = QGroupBox("Depth Image")
+        layout.addWidget(self.test_depth_groupbox)
+        depth_layout = QVBoxLayout()
+        self.test_depth_groupbox.setLayout(depth_layout)
+        self.test_depth_video = ResizableImageLabel()
+        self.test_depth_video.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        depth_layout.addWidget(self.test_depth_video)
+
+        self.generate_static_button = QPushButton("Generate Static Image")
+        layout.addWidget(self.generate_static_button)
     # Include all the init_* methods from your VTKWidgets class here
     # For example:
     def init_fps_label(self, layout: QVBoxLayout):
@@ -247,6 +286,7 @@ class PCDStreamerUI(QMainWindow):
     def init_video_displays(self, layout:QVBoxLayout):
         self.init_color_image_display(layout)
         self.init_depth_image_display(layout)
+
 
     def init_color_image_display(self, layout: QVBoxLayout):
         self.color_groupbox = QGroupBox("Color image")

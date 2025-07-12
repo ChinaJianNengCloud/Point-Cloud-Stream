@@ -182,30 +182,62 @@ class PCDStreamerFromCamera:
     def get_frame(self, take_pcd: bool = True):
         if self.camera is None:
             logger.warning("No camera connected")
+            return {}
+
         if take_pcd:
             rgbd_frame = self.camera.capture_frame(True)
             if rgbd_frame is None:
                 return {}
-            
-            depth = o3d.t.geometry.Image(o3c.Tensor(np.asarray(rgbd_frame.depth), 
-                                                    device=self.o3d_device))
-            color = o3d.t.geometry.Image(o3c.Tensor(np.asarray(rgbd_frame.color), 
-                                                    device=self.o3d_device))
-            # logger.debug("Stream Debug Point 2.0")
+
+            color_np = np.asarray(rgbd_frame.color)
+            depth_np_raw = np.asarray(rgbd_frame.depth)
+            true_pic_height, true_pic_width = color_np.shape[:2]
+
+            # Open3D 格式
+            depth = o3d.t.geometry.Image(o3c.Tensor(depth_np_raw, device=self.o3d_device))
+            color = o3d.t.geometry.Image(o3c.Tensor(color_np, device=self.o3d_device))
+
             rgbd_image = o3d.t.geometry.RGBDImage(color, depth)
+
+            # 点云构建
             pcd_frame = o3d.t.geometry.PointCloud.create_from_rgbd_image(
-                rgbd_image, 
-                o3c.Tensor(self.__intrinsic_matrix, dtype=o3c.Dtype.Float32, device=self.o3d_device), 
+                rgbd_image,
+                o3c.Tensor(self.__intrinsic_matrix, dtype=o3c.Dtype.Float32, device=self.o3d_device),
                 o3c.Tensor(self.__extrinsics, dtype=o3c.Dtype.Float32, device=self.o3d_device),
                 self.depth_scale, self.depth_max,
-                self.pcd_stride, self.flag_normals)
+                self.pcd_stride, self.flag_normals
+            )
 
-            depth_in_color = depth.colorize_depth(
-                    self.depth_scale, 0, self.depth_max)
-            
-            return {'pcd': pcd_frame.to_legacy(), 
-                    'color': color, 
-                    'depth': depth_in_color}
+            # 可视化图
+            depth_in_color = depth.colorize_depth(self.depth_scale, 0, self.depth_max)
+
+            # 构建像素 -> 点云索引映射
+            depth_np = rgbd_image.depth.as_tensor().cpu().numpy()
+            if depth_np.ndim == 3 and depth_np.shape[2] == 1:
+                depth_np = np.squeeze(depth_np, axis=2)
+
+            height, width = depth_np.shape
+            pixel_to_index = {}
+            index = 0
+            for v in range(0, height, self.pcd_stride):
+                for u in range(0, width, self.pcd_stride):
+                    if depth_np[v, u] > 0:
+                        pixel_to_index[(u, v)] = index
+                        index += 1
+
+            return {
+                'pcd': pcd_frame.to_legacy(),
+                'color': color,
+                'depth': depth_in_color,
+                'depth_onechannal': depth,
+                'true_pic_width': true_pic_width,
+                'true_pic_hight': true_pic_height,
+                'pixel_to_index': pixel_to_index,
+                'depth_np': depth_np,  # 方便外部计算
+                'intrinsic': self.__intrinsic_matrix,
+                'extrinsic': self.__extrinsics,
+                'depth_scale': self.depth_scale,
+            }
 
     def get_camera_frustum(self):
         return self.camera_frustrum

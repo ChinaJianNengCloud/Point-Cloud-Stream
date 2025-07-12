@@ -21,7 +21,7 @@ def main():
         'pose_file_path': './poses.txt',
         'load_intrinsic': True,
         'calib_path': './Calibration_results/calibration_results.json',
-        'device': 'cuda:0',
+        'device': 'CPU:0',
         'camera_config': './camera_config.json',
         'rgbd_video': None,
         'board_type': 'DICT_4X4_100',

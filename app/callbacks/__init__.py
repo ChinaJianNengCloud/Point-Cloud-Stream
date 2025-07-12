@@ -4,3 +4,4 @@ from .bbox_callbacks import *
 from .view_callbacks import *
 from .calib_callbacks import *
 from .agent_callbacks import *
+from .clickpic_callbacks import *

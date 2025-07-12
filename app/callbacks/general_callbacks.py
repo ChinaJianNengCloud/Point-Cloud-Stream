@@ -28,3 +28,5 @@ def on_stream_init_button_clicked(self: "PCDStreamer"):
             self.status_message.setText("System: Failed to connect to Camera")
         self.set_vtk_camera_from_intrinsics(self.streamer.intrinsic_matrix, self.streamer.extrinsics)
     self.set_enable_after_stream_init()
+
+

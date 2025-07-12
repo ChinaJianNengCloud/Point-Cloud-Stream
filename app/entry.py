@@ -31,6 +31,7 @@ from app.viewers.pcd_viewer import PCDStreamerFromCamera, PCDUpdater
 from app.threads.op_thread import DataSendToServerThread, RobotTcpOpThread
 from app.callbacks import *
 from app.utils.pose import Pose
+import vtk
 # from app.utils.robot.matrix_pose_op import *
 
 from app.utils.logger import setup_logger
@@ -70,6 +71,8 @@ class PCDStreamer(PCDStreamerUI):
         self.T_CamToBase: Pose = None
         self.T_BaseToCam: Pose = None
         self.pcd_seg_model = None
+
+
         self.calib: Dict = None
         self.streamer.camera_frustrum.register_renderer(self.renderer)
         self.palettes = self.get_num_of_palette(80)
@@ -82,6 +85,71 @@ class PCDStreamer(PCDStreamerUI):
         self.__init_ui_values_from_params()
         self.__callback_bindings()
         self.set_disable_before_stream_init()
+
+    # 用于绘制VTK点
+    def add_point_to_vtk_from_relative(self, point3d: list, frame: dict):
+        pcd: o3d.geometry.PointCloud = frame.get('pcd', None)
+        if pcd is None:
+            logger.warning("Point cloud not available.")
+            return
+
+        points = np.asarray(pcd.points)
+        if points.shape[0] == 0:
+            logger.warning("Point cloud is empty.")
+            return
+
+        logger.info(f"Selected 3D point: {point3d}")
+
+        # 绘制球体
+        sphere = vtk.vtkSphereSource()
+        sphere.SetCenter(*point3d)
+        sphere.SetRadius(0.01)
+        sphere.Update()
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(sphere.GetOutput())
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(1, 0, 0)  # 红色
+
+        self.renderer.AddActor(actor)
+        self.vtk_widget.GetRenderWindow().Render()
+
+    #用于绘制深度图的点
+    def mark_point_on_test_depth(self, relative_x: float, relative_y: float):
+        if 'depth' not in self.current_frame:
+            return
+
+        depth_img = self.current_frame['depth']
+        depth_np = self._img_to_array(depth_img).copy()
+
+        if depth_np.ndim != 3 or depth_np.shape[2] != 3:
+            return  # 非 RGB 图像跳过
+
+        h, w, _ = depth_np.shape
+
+        # 映射为像素坐标
+        x = int(relative_x * w)
+        y = int(relative_y * h)
+
+        if not (0 <= x < w and 0 <= y < h):
+            return
+
+        # 在原图上标点
+        cv2.circle(depth_np, (x, y), 5, (0, 0, 255), -1)
+
+        # 将图像等比缩放为控件大小再显示
+        q_image = QImage(depth_np.data, w, h, 3 * w, QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_image)
+
+        # 获取控件当前尺寸进行缩放
+        display_size = self.test_depth_video.size()
+        scaled_pixmap = pixmap.scaled(display_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        self.test_depth_video.setPixmap(scaled_pixmap)
+
+
 
     @property
     def T_CamToBase(self) -> Pose:
@@ -212,6 +280,11 @@ class PCDStreamer(PCDStreamerUI):
         # Key press events
         self.vtk_widget.AddObserver("KeyPressEvent", self.on_key_press)
 
+        # 点击图片
+        self.test_color_video.clicked.connect(
+        partial(on_test_color_clicked, self)  # 只绑定self，其余参数由信号提供
+        )
+
 
     def set_vtk_camera_from_intrinsics(self, intrinsic_matrix:np.ndarray, extrinsics):
         """
@@ -320,6 +393,16 @@ class PCDStreamer(PCDStreamerUI):
                 else:
                     self.board_pose_frame.SetUserMatrix(cam_to_board.vtk_matrix)
     
+    #
+    def update_resizable_image(self, label: QLabel, image: np.ndarray):
+        img = self._img_to_array(image)
+        if img.shape[2] == 3:
+            height, width, _ = img.shape
+            q_img = QImage(img.data, width, height, 3 * width, QImage.Format_RGB888)
+            label.setPixmap(QPixmap.fromImage(q_img).scaled(
+                label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        
+
     def point_cloud_update(self, frame_elements: dict):
         """Update visualization with point cloud and images."""
 
@@ -346,6 +429,14 @@ class PCDStreamer(PCDStreamerUI):
         if 'fps' in frame_elements:
             fps = frame_elements["fps"]
             self.fps_label.setText(f"FPS: {int(fps)}")
+
+        # ✅ 增加 Test tab 图像显示
+        if hasattr(self, 'test_color_video') and 'color' in frame_elements:
+            self.update_resizable_image(self.test_color_video, frame_elements['color'])
+            self.test_color_video.set_frame(frame_elements)  # 传递 frame 数据
+
+        if hasattr(self, 'test_depth_video') and 'depth' in frame_elements:
+            self.update_resizable_image(self.test_depth_video, frame_elements['depth'])
 
         # if hasattr(self, 'robot'):
         #     if 'robot_pose' in frame_elements:
