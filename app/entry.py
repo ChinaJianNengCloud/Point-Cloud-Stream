@@ -71,6 +71,7 @@ class PCDStreamer(PCDStreamerUI):
         self.T_BaseToCam: Pose = None
         self.pcd_seg_model = None
         self.calib: Dict = None
+        self._T_CamToBase = None
         self.streamer.camera_frustrum.register_renderer(self.renderer)
         self.palettes = self.get_num_of_palette(80)
         self.conversation_data = ConversationData()

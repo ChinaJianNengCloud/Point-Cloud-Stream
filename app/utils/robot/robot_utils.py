@@ -205,6 +205,7 @@ if __name__ == "__main__":
     import time
     arm.find_device()
     arm.connect()
+    print(arm.ip_address)
     path = "pose.txt"
     test_pose = np.array([-644, 30, 81, -36, -12, 137], dtype=np.float32)
     test_joint_pose = np.array([-19, -4, 27, -118, -46, 114], dtype=np.float32)

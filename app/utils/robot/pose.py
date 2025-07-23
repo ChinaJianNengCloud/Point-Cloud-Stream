@@ -57,7 +57,7 @@ class Pose:
         if on == "base":
             return delta_pose * self
         elif on == "ee":
-            return self * delta_pose
+            return self * delta_pose # (0, 0, 0.1, 0, 0, 0)
         elif on == "align":
             new_pose = delta_pose * self
             new_pose.set_p(self.p + delta_pose.p)

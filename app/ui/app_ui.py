@@ -417,14 +417,14 @@ class PCDStreamerUI(QMainWindow):
         col_label = QLabel("Col")
         h_layout.addWidget(col_label)
         self.board_col_num_edit = QSpinBox()
-        self.board_col_num_edit.setRange(5, 15)
+        self.board_col_num_edit.setRange(1, 15)
         self.board_col_num_edit.setValue(11)
         h_layout.addWidget(self.board_col_num_edit)
 
         row_label = QLabel("Row")
         h_layout.addWidget(row_label)
         self.board_row_num_edit = QSpinBox()
-        self.board_row_num_edit.setRange(5, 15)
+        self.board_row_num_edit.setRange(1, 15)
         self.board_row_num_edit.setValue(6)
         h_layout.addWidget(self.board_row_num_edit)
 
